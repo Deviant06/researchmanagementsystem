@@ -104,21 +104,6 @@ as $$
   select coalesce((auth.jwt() -> 'app_metadata' ->> 'role') = 'ADMIN', false);
 $$;
 
-create or replace function public.is_in_group(target_group_id uuid)
-returns boolean
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select exists (
-    select 1
-    from public.profiles
-    where profiles.id = auth.uid()
-      and profiles.group_id = target_group_id
-  );
-$$;
-
 create table if not exists public.groups (
   id uuid primary key default gen_random_uuid(),
   name text not null unique,
@@ -234,6 +219,21 @@ create index if not exists idx_comments_group_stage on public.comments(group_id,
 create index if not exists idx_tasks_group_stage on public.tasks(group_id, stage_key);
 create index if not exists idx_notification_recipients_user_id on public.notification_recipients(user_id);
 create unique index if not exists idx_resources_title_unique on public.resources(title);
+
+create or replace function public.is_in_group(target_group_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.profiles
+    where profiles.id = auth.uid()
+      and profiles.group_id = target_group_id
+  );
+$$;
 
 drop trigger if exists trg_groups_updated_at on public.groups;
 create trigger trg_groups_updated_at
