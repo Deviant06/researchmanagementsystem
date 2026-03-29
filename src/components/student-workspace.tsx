@@ -66,6 +66,9 @@ export function StudentWorkspace({ data }: StudentWorkspaceProps) {
             <p>
               Collaborators: {data.group.students.map((student) => student.name).join(", ")}
             </p>
+            <p className="muted-copy">
+              You can view group members, feedback, and tasks, but submission history is limited to your own uploads.
+            </p>
           </div>
         </div>
         <ProgressBar

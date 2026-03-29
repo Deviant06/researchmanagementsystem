@@ -41,5 +41,6 @@ export const resourceSchema = z.object({
   title: z.string().min(2).max(100),
   description: z.string().min(2).max(400),
   category: z.enum(["TEMPLATE", "RUBRIC", "SAMPLE_PAPER", "VIDEO_GUIDE"]),
-  externalUrl: z.string().url().optional().or(z.literal(""))
+  externalUrl: z.string().url().optional().or(z.literal("")),
+  audience: z.enum(["ALL", "ADMIN_ONLY"]).default("ALL")
 });

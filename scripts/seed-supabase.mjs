@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const tempPassword = "ResearchHub123!";
+const demoPassword = "ResearchHub123!";
 
 if (!supabaseUrl || !serviceRoleKey) {
   console.error(
@@ -19,14 +19,22 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
 });
 
 const STAGES = [
-  { key: "title-proposal", label: "Title Proposal", dueOffsetDays: 5 },
-  { key: "chapter-1", label: "Chapter 1", dueOffsetDays: 12 },
-  { key: "chapter-2", label: "Chapter 2", dueOffsetDays: 20 },
-  { key: "chapter-3", label: "Chapter 3", dueOffsetDays: 28 },
-  { key: "data-gathering", label: "Data Gathering", dueOffsetDays: 36 },
-  { key: "data-analysis", label: "Data Analysis", dueOffsetDays: 44 },
-  { key: "chapter-4-5", label: "Chapter 4-5", dueOffsetDays: 52 },
-  { key: "final-defense", label: "Final Defense", dueOffsetDays: 60 }
+  { key: "title-proposal", dueOffsetDays: 5 },
+  { key: "chapter-1", dueOffsetDays: 12 },
+  { key: "chapter-2", dueOffsetDays: 20 },
+  { key: "chapter-3", dueOffsetDays: 28 },
+  { key: "data-gathering", dueOffsetDays: 36 },
+  { key: "data-analysis", dueOffsetDays: 44 },
+  { key: "chapter-4-5", dueOffsetDays: 52 },
+  { key: "final-defense", dueOffsetDays: 60 }
+];
+
+const STUDENTS = [
+  { email: "aira@researchhub.local", name: "Aira Santos" },
+  { email: "noah@researchhub.local", name: "Noah Cruz" },
+  { email: "leah@researchhub.local", name: "Leah Mendoza" },
+  { email: "ethan@researchhub.local", name: "Ethan Reyes" },
+  { email: "mia@researchhub.local", name: "Mia Delgado" }
 ];
 
 function addDays(base, days) {
@@ -53,8 +61,9 @@ async function ensureUser({ email, name, role }) {
     await must(
       `Updating auth user ${email}`,
       supabase.auth.admin.updateUserById(found.id, {
-        password: tempPassword,
+        password: demoPassword,
         email,
+        email_confirm: true,
         user_metadata: {
           full_name: name
         },
@@ -71,7 +80,7 @@ async function ensureUser({ email, name, role }) {
     `Creating auth user ${email}`,
     supabase.auth.admin.createUser({
       email,
-      password: tempPassword,
+      password: demoPassword,
       email_confirm: true,
       user_metadata: {
         full_name: name
@@ -88,37 +97,31 @@ async function ensureUser({ email, name, role }) {
 async function main() {
   const teacherId = await ensureUser({
     email: "teacher@researchhub.local",
-    name: "Prof. Mae Tancu",
+    name: "Prof. Veda Santiago",
     role: "ADMIN"
   });
-  const airaId = await ensureUser({
-    email: "aira@researchhub.local",
-    name: "Aira Santos",
-    role: "STUDENT"
-  });
-  const noahId = await ensureUser({
-    email: "noah@researchhub.local",
-    name: "Noah Cruz",
-    role: "STUDENT"
-  });
-  const leahId = await ensureUser({
-    email: "leah@researchhub.local",
-    name: "Leah Mendoza",
-    role: "STUDENT"
-  });
+
+  const studentAccounts = [];
+  for (const student of STUDENTS) {
+    const id = await ensureUser({
+      email: student.email,
+      name: student.name,
+      role: "STUDENT"
+    });
+    studentAccounts.push({ ...student, id });
+  }
 
   const groupRows = await must(
-    "Creating groups",
+    "Creating group",
     supabase
       .from("groups")
-      .upsert([{ name: "Group Newton" }, { name: "Group Curie" }], {
+      .upsert([{ name: "Group Veda" }], {
         onConflict: "name"
       })
       .select("*")
   );
 
-  const groupNewton = groupRows.find((group) => group.name === "Group Newton");
-  const groupCurie = groupRows.find((group) => group.name === "Group Curie");
+  const group = groupRows[0];
 
   await must(
     "Upserting profiles",
@@ -126,140 +129,107 @@ async function main() {
       {
         id: teacherId,
         role: "ADMIN",
-        name: "Prof. Mae Tancu",
+        name: "Prof. Veda Santiago",
         email: "teacher@researchhub.local",
         group_id: null,
         email_alerts: true
       },
-      {
-        id: airaId,
+      ...studentAccounts.map((student) => ({
+        id: student.id,
         role: "STUDENT",
-        name: "Aira Santos",
-        email: "aira@researchhub.local",
-        group_id: groupNewton.id,
+        name: student.name,
+        email: student.email,
+        group_id: group.id,
         email_alerts: true
-      },
-      {
-        id: noahId,
-        role: "STUDENT",
-        name: "Noah Cruz",
-        email: "noah@researchhub.local",
-        group_id: groupNewton.id,
-        email_alerts: true
-      },
-      {
-        id: leahId,
-        role: "STUDENT",
-        name: "Leah Mendoza",
-        email: "leah@researchhub.local",
-        group_id: groupCurie.id,
-        email_alerts: true
-      }
+      }))
     ])
   );
 
-  const stageSeed = [
-    ...STAGES.map((stage) => ({
-      group_id: groupNewton.id,
-      stage_key: stage.key,
-      status:
-        stage.key === "title-proposal"
-          ? "APPROVED"
-          : stage.key === "chapter-1"
-            ? "REVISED"
-            : stage.key === "chapter-2"
-              ? "SUBMITTED"
-              : "NOT_STARTED",
-      due_date: addDays("2026-02-01T09:00:00.000Z", stage.dueOffsetDays),
-      last_submission_at:
-        stage.key === "title-proposal"
-          ? "2026-02-08T09:15:00.000Z"
-          : stage.key === "chapter-1"
-            ? "2026-03-10T07:35:00.000Z"
-            : null,
-      last_reviewed_at:
-        stage.key === "title-proposal"
-          ? "2026-02-10T10:00:00.000Z"
-          : stage.key === "chapter-1"
-            ? "2026-03-11T09:15:00.000Z"
-            : null
-    })),
-    ...STAGES.map((stage) => ({
-      group_id: groupCurie.id,
-      stage_key: stage.key,
-      status:
-        stage.key === "title-proposal" || stage.key === "chapter-1"
-          ? "APPROVED"
-          : stage.key === "chapter-2"
-            ? "UNDER_REVIEW"
-            : "NOT_STARTED",
-      due_date: addDays("2026-02-07T09:00:00.000Z", stage.dueOffsetDays),
-      last_submission_at:
-        stage.key === "chapter-2" ? "2026-03-18T10:30:00.000Z" : null,
-      last_reviewed_at:
-        stage.key === "chapter-2" ? "2026-03-20T10:00:00.000Z" : null
-    }))
-  ];
-
   await must(
     "Upserting stages",
-    supabase.from("stages").upsert(stageSeed, {
-      onConflict: "group_id,stage_key"
-    })
+    supabase.from("stages").upsert(
+      STAGES.map((stage) => ({
+        group_id: group.id,
+        stage_key: stage.key,
+        status:
+          stage.key === "title-proposal"
+            ? "APPROVED"
+            : stage.key === "chapter-1"
+              ? "REVISED"
+              : stage.key === "chapter-2"
+                ? "SUBMITTED"
+                : "NOT_STARTED",
+        due_date: addDays("2026-02-03T01:00:00.000Z", stage.dueOffsetDays),
+        last_submission_at:
+          stage.key === "title-proposal"
+            ? "2026-02-08T09:15:00.000Z"
+            : stage.key === "chapter-1"
+              ? "2026-03-10T07:35:00.000Z"
+              : stage.key === "chapter-2"
+                ? "2026-03-21T10:30:00.000Z"
+                : null,
+        last_reviewed_at:
+          stage.key === "title-proposal"
+            ? "2026-02-10T10:00:00.000Z"
+            : stage.key === "chapter-1"
+              ? "2026-03-11T09:15:00.000Z"
+              : null
+      })),
+      {
+        onConflict: "group_id,stage_key"
+      }
+    )
   );
 
-  const submissionRows = await must(
+  await must(
     "Creating submissions",
-    supabase
-      .from("submissions")
-      .upsert(
-        [
-          {
-            group_id: groupNewton.id,
-            stage_key: "title-proposal",
-            version: 1,
-            submission_type: "TEXT",
-            content:
-              "Investigating gamified review strategies to improve STEM readiness among Grade 12 learners.",
-            uploaded_by_user_id: airaId,
-            created_at: "2026-02-08T09:15:00.000Z"
-          },
-          {
-            group_id: groupNewton.id,
-            stage_key: "chapter-1",
-            version: 1,
-            submission_type: "TEXT",
-            content:
-              "Initial Chapter 1 draft covering background of the study, statement of the problem, and significance.",
-            uploaded_by_user_id: noahId,
-            created_at: "2026-02-20T12:20:00.000Z"
-          },
-          {
-            group_id: groupNewton.id,
-            stage_key: "chapter-1",
-            version: 2,
-            submission_type: "TEXT",
-            content:
-              "Revised Chapter 1 draft with stronger research gap articulation and expanded local literature context.",
-            uploaded_by_user_id: airaId,
-            created_at: "2026-03-10T07:35:00.000Z"
-          },
-          {
-            group_id: groupCurie.id,
-            stage_key: "chapter-2",
-            version: 1,
-            submission_type: "TEXT",
-            content:
-              "Chapter 2 literature review draft focused on social media use and time-management behavior among students.",
-            uploaded_by_user_id: leahId,
-            created_at: "2026-03-18T10:30:00.000Z"
-          }
-        ],
+    supabase.from("submissions").upsert(
+      [
         {
-          onConflict: "group_id,stage_key,version"
+          group_id: group.id,
+          stage_key: "title-proposal",
+          version: 1,
+          submission_type: "TEXT",
+          content:
+            "Investigating guided study pods as a strategy for improving Grade 12 research writing confidence.",
+          uploaded_by_user_id: studentAccounts[0].id,
+          created_at: "2026-02-08T09:15:00.000Z"
+        },
+        {
+          group_id: group.id,
+          stage_key: "chapter-1",
+          version: 1,
+          submission_type: "TEXT",
+          content:
+            "Initial Chapter 1 draft covering the background of the study, research problem, and significance.",
+          uploaded_by_user_id: studentAccounts[1].id,
+          created_at: "2026-02-20T12:20:00.000Z"
+        },
+        {
+          group_id: group.id,
+          stage_key: "chapter-1",
+          version: 2,
+          submission_type: "TEXT",
+          content:
+            "Revised Chapter 1 draft with a clearer research gap and improved local context.",
+          uploaded_by_user_id: studentAccounts[0].id,
+          created_at: "2026-03-10T07:35:00.000Z"
+        },
+        {
+          group_id: group.id,
+          stage_key: "chapter-2",
+          version: 1,
+          submission_type: "TEXT",
+          content:
+            "Chapter 2 literature review draft focused on collaborative learning, study habits, and student motivation.",
+          uploaded_by_user_id: studentAccounts[2].id,
+          created_at: "2026-03-21T10:30:00.000Z"
         }
-      )
-      .select("*")
+      ],
+      {
+        onConflict: "group_id,stage_key,version"
+      }
+    )
   );
 
   const commentRows = await must(
@@ -268,33 +238,24 @@ async function main() {
       .from("comments")
       .insert([
         {
-          group_id: groupNewton.id,
+          group_id: group.id,
           stage_key: "chapter-1",
           section: "RRL",
           category: "MAJOR_REVISION",
-          text: "The review lacks enough local studies. Expand the discussion before resubmitting.",
+          text: "Expand the local literature review with at least three recent Philippine studies.",
           created_by_user_id: teacherId,
           created_at: "2026-03-11T09:00:00.000Z"
         },
         {
-          group_id: groupNewton.id,
+          group_id: group.id,
           stage_key: "chapter-1",
           section: "Conceptual Framework",
           category: "MINOR_REVISION",
-          text: "The framework is improving. Tighten the arrows and rename the constructs for consistency.",
+          text: "Tighten the framework labels so they match the variables in the statement of the problem.",
           created_by_user_id: teacherId,
           created_at: "2026-03-11T09:15:00.000Z",
           addressed_at: "2026-03-13T06:45:00.000Z",
-          addressed_by_user_id: noahId
-        },
-        {
-          group_id: groupCurie.id,
-          stage_key: "chapter-2",
-          section: "Synthesis",
-          category: "MINOR_REVISION",
-          text: "The synthesis is promising, but it still reads like a summary. Show the exact gap your study addresses.",
-          created_by_user_id: teacherId,
-          created_at: "2026-03-20T10:00:00.000Z"
+          addressed_by_user_id: studentAccounts[1].id
         }
       ])
       .select("*")
@@ -304,17 +265,14 @@ async function main() {
   const frameworkComment = commentRows.find(
     (comment) => comment.section === "Conceptual Framework"
   );
-  const synthesisComment = commentRows.find(
-    (comment) => comment.section === "Synthesis"
-  );
 
   await must(
     "Creating comment replies",
     supabase.from("comment_replies").insert([
       {
         comment_id: rrlComment.id,
-        user_id: airaId,
-        text: "We already found additional local references and will add them to the next version.",
+        user_id: studentAccounts[0].id,
+        text: "We have already added two local studies and are searching for one more from a nearby school.",
         created_at: "2026-03-11T13:20:00.000Z"
       }
     ])
@@ -325,39 +283,28 @@ async function main() {
     supabase.from("tasks").upsert(
       [
         {
-          group_id: groupNewton.id,
+          group_id: group.id,
           stage_key: "chapter-1",
           comment_id: rrlComment.id,
           description:
             "Strengthen the local RRL and cite at least three recent Philippine studies.",
           status: "PENDING",
           student_response:
-            "We are collecting two campus-based and one regional study for the next revision.",
+            "The team is collecting one campus-based and two regional references for the next revision.",
           created_at: "2026-03-11T09:00:00.000Z",
           updated_at: "2026-03-12T08:00:00.000Z"
         },
         {
-          group_id: groupNewton.id,
+          group_id: group.id,
           stage_key: "chapter-1",
           comment_id: frameworkComment.id,
           description:
             "Revise the conceptual framework illustration for clearer variable flow.",
           status: "COMPLETED",
           student_response:
-            "Updated the framework and aligned the labels with the statement of the problem.",
+            "Updated the framework and aligned the variable labels with the research questions.",
           created_at: "2026-03-11T09:15:00.000Z",
           updated_at: "2026-03-13T06:45:00.000Z"
-        },
-        {
-          group_id: groupCurie.id,
-          stage_key: "chapter-2",
-          comment_id: synthesisComment.id,
-          description:
-            "Reorganize the synthesis section to show the gap between productivity tools and academic stress.",
-          status: "PENDING",
-          student_response: null,
-          created_at: "2026-03-20T10:00:00.000Z",
-          updated_at: "2026-03-20T10:00:00.000Z"
         }
       ],
       {
@@ -372,9 +319,10 @@ async function main() {
       [
         {
           category: "TEMPLATE",
+          audience: "ALL",
           title: "Chapter 1 Template",
           description:
-            "Standard senior high school Chapter 1 structure with section prompts.",
+            "Standard senior high school Chapter 1 structure with prompts for each section.",
           file_name: null,
           file_path: null,
           external_url: null,
@@ -383,6 +331,7 @@ async function main() {
         },
         {
           category: "RUBRIC",
+          audience: "ALL",
           title: "Final Defense Rubric",
           description: "Teacher scoring rubric for the final defense presentation.",
           file_name: null,
@@ -393,14 +342,27 @@ async function main() {
         },
         {
           category: "VIDEO_GUIDE",
+          audience: "ALL",
           title: "How to Write a Strong RRL",
           description:
             "Short video guide on synthesizing sources instead of summarizing them.",
+          external_url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
           file_name: null,
           file_path: null,
-          external_url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
           uploaded_by_user_id: teacherId,
           created_at: "2026-03-06T08:45:00.000Z"
+        },
+        {
+          category: "TEMPLATE",
+          audience: "ADMIN_ONLY",
+          title: "Teacher Monitoring Sheet",
+          description:
+            "Internal teaching resource for tracking review cadence and intervention notes.",
+          file_name: null,
+          file_path: null,
+          external_url: null,
+          uploaded_by_user_id: teacherId,
+          created_at: "2026-03-07T09:15:00.000Z"
         }
       ],
       {
@@ -417,26 +379,26 @@ async function main() {
         {
           type: "FEEDBACK",
           title: "Chapter 1 feedback posted",
-          message: "Your teacher left major revision notes on the RRL section.",
-          group_id: groupNewton.id,
+          message: "Major revision notes were added to the RRL section.",
+          group_id: group.id,
           stage_key: "chapter-1",
           created_at: "2026-03-11T09:00:00.000Z"
         },
         {
-          type: "REVISION_TASK",
-          title: "Revision task assigned",
-          message: "A new synthesis revision task was added to Chapter 2.",
-          group_id: groupCurie.id,
-          stage_key: "chapter-2",
-          created_at: "2026-03-20T10:00:00.000Z"
-        },
-        {
           type: "SUBMISSION",
           title: "Chapter 2 submitted",
-          message: "Group Curie uploaded a new Chapter 2 draft for review.",
-          group_id: groupCurie.id,
+          message: "Group Veda uploaded a new Chapter 2 draft for teacher review.",
+          group_id: group.id,
           stage_key: "chapter-2",
-          created_at: "2026-03-18T10:30:00.000Z"
+          created_at: "2026-03-21T10:30:00.000Z"
+        },
+        {
+          type: "STATUS",
+          title: "Deadline reminder",
+          message: "Chapter 3 is due in three days. Review pending tasks before the deadline.",
+          group_id: group.id,
+          stage_key: "chapter-3",
+          created_at: "2026-03-24T08:00:00.000Z"
         }
       ])
       .select("*")
@@ -445,31 +407,27 @@ async function main() {
   await must(
     "Creating notification recipients",
     supabase.from("notification_recipients").upsert([
-      {
+      ...studentAccounts.map((student) => ({
         notification_id: notificationRows[0].id,
-        user_id: airaId,
+        user_id: student.id,
         created_at: "2026-03-11T09:00:00.000Z"
-      },
-      {
-        notification_id: notificationRows[0].id,
-        user_id: noahId,
-        created_at: "2026-03-11T09:00:00.000Z"
-      },
+      })),
       {
         notification_id: notificationRows[1].id,
-        user_id: leahId,
-        created_at: "2026-03-20T10:00:00.000Z"
-      },
-      {
-        notification_id: notificationRows[2].id,
         user_id: teacherId,
-        created_at: "2026-03-18T10:30:00.000Z"
-      }
+        created_at: "2026-03-21T10:30:00.000Z"
+      },
+      ...studentAccounts.map((student) => ({
+        notification_id: notificationRows[2].id,
+        user_id: student.id,
+        created_at: "2026-03-24T08:00:00.000Z"
+      }))
     ])
   );
 
   console.log("Supabase demo data seeded successfully.");
   console.log("Teacher login: teacher@researchhub.local / ResearchHub123!");
+  console.log("Student demo login: aira@researchhub.local / ResearchHub123!");
 }
 
 main().catch((error) => {

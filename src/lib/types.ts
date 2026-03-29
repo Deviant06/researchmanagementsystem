@@ -29,6 +29,8 @@ export type ResourceCategory =
   | "SAMPLE_PAPER"
   | "VIDEO_GUIDE";
 
+export type ResourceAudience = "ALL" | "ADMIN_ONLY";
+
 export type NotificationType =
   | "FEEDBACK"
   | "REVISION_TASK"
@@ -117,6 +119,7 @@ export interface TaskRecord {
 export interface ResourceRecord {
   id: string;
   category: ResourceCategory;
+  audience: ResourceAudience;
   title: string;
   description: string;
   fileName: string | null;

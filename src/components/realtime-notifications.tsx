@@ -16,7 +16,25 @@ export function RealtimeNotifications({
 }: RealtimeNotificationsProps) {
   const router = useRouter();
   const [notification, setNotification] = useState<NotificationRecord | null>(null);
+  const [browserPermission, setBrowserPermission] = useState<
+    NotificationPermission | "unsupported"
+  >("unsupported");
   const timeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!("Notification" in window)) {
+      setBrowserPermission("unsupported");
+      return;
+    }
+
+    setBrowserPermission(window.Notification.permission);
+
+    if (window.Notification.permission === "default") {
+      void window.Notification.requestPermission().then((permission) => {
+        setBrowserPermission(permission);
+      });
+    }
+  }, []);
 
   useEffect(() => {
     if (
@@ -50,6 +68,17 @@ export function RealtimeNotifications({
             );
 
             setNotification(result.notification);
+            if ("Notification" in window && window.Notification.permission === "granted") {
+              const browserNotice = new window.Notification(result.notification.title, {
+                body: result.notification.message,
+                tag: result.notification.id
+              });
+
+              browserNotice.onclick = () => {
+                window.focus();
+                browserNotice.close();
+              };
+            }
             router.refresh();
 
             if (timeoutRef.current) {
@@ -84,6 +113,9 @@ export function RealtimeNotifications({
       <p className="eyebrow">Live Update</p>
       <strong>{notification.title}</strong>
       <p>{notification.message}</p>
+      {browserPermission === "denied" ? (
+        <p className="muted-copy">Browser alerts are blocked in this browser.</p>
+      ) : null}
     </div>
   );
 }

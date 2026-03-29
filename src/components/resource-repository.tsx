@@ -42,6 +42,32 @@ export function ResourceRepository({
     }
   }
 
+  async function handleDelete(resourceId: string) {
+    const confirmed = window.confirm(
+      "Delete this resource from the repository?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setBusy(true);
+    setFeedback(null);
+
+    try {
+      await requestJson(`/api/resources/${resourceId}`, {
+        method: "DELETE"
+      });
+
+      setFeedback("Resource deleted successfully.");
+      router.refresh();
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : "Delete failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="stack-lg">
       <article className="surface-card">
@@ -100,6 +126,11 @@ export function ResourceRepository({
               </label>
             </div>
 
+            <label className="field checkbox-field">
+              <input name="audience" type="checkbox" value="ADMIN_ONLY" />
+              <span>Admin-only resource</span>
+            </label>
+
             <div className="form-actions">
               <button className="button button-primary" disabled={busy} type="submit">
                 {busy ? "Uploading..." : "Upload Resource"}
@@ -116,27 +147,41 @@ export function ResourceRepository({
           ) : (
             resources.map((resource) => (
               <article className="resource-row" key={resource.id}>
-                <div className="stack-xs">
-                  <div className="inline-cluster">
-                    <strong>{resource.title}</strong>
-                    <span className="badge badge-blue">
-                      {RESOURCE_CATEGORY_LABELS[resource.category]}
+                  <div className="stack-xs">
+                    <div className="inline-cluster">
+                      <strong>{resource.title}</strong>
+                      <span className="badge badge-blue">
+                        {RESOURCE_CATEGORY_LABELS[resource.category]}
+                      </span>
+                      {resource.audience === "ADMIN_ONLY" ? (
+                        <span className="badge badge-slate">Admin Only</span>
+                      ) : null}
+                    </div>
+                    <p>{resource.description}</p>
+                    <span className="muted-copy">
+                      Uploaded {formatDateTime(resource.createdAt)}
                     </span>
-                  </div>
-                  <p>{resource.description}</p>
-                  <span className="muted-copy">
-                    Uploaded {formatDateTime(resource.createdAt)}
-                  </span>
                 </div>
-
-                <a
-                  className="button button-secondary"
-                  href={resource.externalUrl || `/api/files/resources/${resource.id}`}
-                  rel="noreferrer"
-                  target={resource.externalUrl ? "_blank" : undefined}
-                >
-                  {resource.externalUrl ? "Open Link" : "Download"}
-                </a>
+                <div className="inline-actions">
+                  <a
+                    className="button button-secondary"
+                    href={resource.externalUrl || `/api/files/resources/${resource.id}`}
+                    rel="noreferrer"
+                    target={resource.externalUrl ? "_blank" : undefined}
+                  >
+                    {resource.externalUrl ? "Open Link" : "Download"}
+                  </a>
+                  {canUpload ? (
+                    <button
+                      className="button button-ghost"
+                      disabled={busy}
+                      onClick={() => handleDelete(resource.id)}
+                      type="button"
+                    >
+                      Delete
+                    </button>
+                  ) : null}
+                </div>
               </article>
             ))
           )}

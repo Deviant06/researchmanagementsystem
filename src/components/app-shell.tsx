@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
-import { APP_NAME } from "@/lib/constants";
+import { APP_NAME, SCHOOL_NAME } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { SafeUser } from "@/lib/types";
 import { LogoutButton } from "@/components/logout-button";
@@ -34,7 +34,7 @@ export function AppShell({ user, children }: AppShellProps) {
     <div className="app-shell">
       <aside className={cn("sidebar", menuOpen && "sidebar-open")}>
         <div className="brand-block">
-          <p className="eyebrow">Research Suite</p>
+          <p className="eyebrow">{SCHOOL_NAME}</p>
           <h1>{APP_NAME}</h1>
           <p className="brand-copy">
             {user.role === "ADMIN"
@@ -62,7 +62,7 @@ export function AppShell({ user, children }: AppShellProps) {
         <div className="sidebar-footer">
           <div className="user-chip">
             <strong>{user.name}</strong>
-            <span>{user.role === "ADMIN" ? "Teacher Admin" : "Student User"}</span>
+            <span>{user.role === "ADMIN" ? "Teacher Admin" : "Student Researcher"}</span>
           </div>
           <LogoutButton />
         </div>

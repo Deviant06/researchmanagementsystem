@@ -43,7 +43,7 @@ export function StudentManager({ groups, students }: StudentManagerProps) {
     setNotice(null);
 
     try {
-      const result = await requestJson<{ temporaryPassword: string }>(
+      const result = await requestJson<{ emailSent: boolean }>(
         "/api/admin/students",
         {
           method: "POST",
@@ -55,7 +55,9 @@ export function StudentManager({ groups, students }: StudentManagerProps) {
       );
 
       setNotice(
-        `Student account created. Temporary password: ${result.temporaryPassword}`
+        result.emailSent
+          ? "Student account created. A password setup email was sent."
+          : "Student account created, but SMTP is not configured yet. Add Gmail SMTP to send password setup emails."
       );
       setCreateForm(emptyForm);
       router.refresh();
@@ -94,14 +96,18 @@ export function StudentManager({ groups, students }: StudentManagerProps) {
     setNotice(null);
 
     try {
-      const result = await requestJson<{ temporaryPassword: string }>(
+      const result = await requestJson<{ emailSent: boolean }>(
         `/api/admin/students/${studentId}/reset-password`,
         {
           method: "POST"
         }
       );
 
-      setNotice(`Password reset. Temporary password: ${result.temporaryPassword}`);
+      setNotice(
+        result.emailSent
+          ? "Password reset email sent."
+          : "Password reset link was generated, but SMTP is not configured yet."
+      );
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Password reset failed.");
     } finally {
@@ -150,7 +156,7 @@ export function StudentManager({ groups, students }: StudentManagerProps) {
         <div className="section-heading">
           <div>
             <h3>Student Accounts</h3>
-            <p>Create, edit, reassign, or remove student access.</p>
+            <p>Create, edit, reassign, or remove student access with email-based password setup.</p>
           </div>
         </div>
 
@@ -332,7 +338,7 @@ export function StudentManager({ groups, students }: StudentManagerProps) {
                             onClick={() => resetPassword(student.id)}
                             type="button"
                           >
-                            Reset Password
+                            Send Reset Email
                           </button>
                           <button
                             className="button button-ghost"

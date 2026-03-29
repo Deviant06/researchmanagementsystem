@@ -212,8 +212,12 @@ export function StageWorkspaceCard({
       <section className="stack-sm">
         <div className="section-heading">
           <div>
-            <h4>Submission History</h4>
-            <p>Every version is preserved with timestamps and uploader details.</p>
+            <h4>{role === "ADMIN" ? "Submission History" : "Your Submission History"}</h4>
+            <p>
+              {role === "ADMIN"
+                ? "Every version is preserved with timestamps and uploader details."
+                : "Your own uploads are preserved with version numbers and timestamps."}
+            </p>
           </div>
         </div>
 

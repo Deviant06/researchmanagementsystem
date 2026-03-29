@@ -39,13 +39,18 @@ export async function POST(request: Request) {
       title: String(formData.get("title") ?? ""),
       description: String(formData.get("description") ?? ""),
       category: String(formData.get("category") ?? ""),
-      externalUrl: String(formData.get("externalUrl") ?? "")
+      externalUrl: String(formData.get("externalUrl") ?? ""),
+      audience:
+        String(formData.get("audience") ?? "ALL") === "ADMIN_ONLY"
+          ? "ADMIN_ONLY"
+          : "ALL"
     });
     const maybeFile = formData.get("file");
     const file = maybeFile instanceof File ? maybeFile : null;
 
     await uploadResource(user, {
       ...body,
+      audience: body.audience,
       externalUrl: body.externalUrl || undefined,
       file
     });

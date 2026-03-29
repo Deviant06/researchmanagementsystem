@@ -1,6 +1,6 @@
-# ResearchHub TANCU
+# VedaResearchHub
 
-ResearchHub TANCU is a full-stack research management system for senior high school teachers and students. It provides secure role-based access, structured research stages, submission version history, feedback-to-task conversion, analytics, and a shared resource repository.
+VedaResearchHub is a full-stack research management system for senior high school teachers and students at Vedasto R. Santiago High School. It provides secure role-based access, structured research stages, submission version history, feedback-to-task conversion, analytics, and a shared resource repository.
 
 ## Stack
 
@@ -37,9 +37,11 @@ ResearchHub TANCU is a full-stack research management system for senior high sch
 - Student replies and "mark addressed" workflow
 - Revision task tracker generated from teacher comments
 - Resource repository for templates, rubrics, sample papers, and video guides
+- Admin-only resource visibility for internal teacher materials
 - Admin analytics for progress, delays, revision hotspots, and submission frequency
 - Realtime notification refreshes when new alerts are assigned
-- Email alerts for submissions, feedback, task changes, resource uploads, and status updates
+- Browser notifications plus in-app realtime alerts
+- Email alerts for submissions, feedback, task changes, password setup/reset, and status updates
 - Mobile-responsive dashboard with sidebar navigation and color indicators
 
 ## Demo Accounts
@@ -55,8 +57,10 @@ Additional seeded students:
 
 - `noah@researchhub.local`
 - `leah@researchhub.local`
+- `ethan@researchhub.local`
+- `mia@researchhub.local`
 
-They all use the same temporary password above unless reset by the admin.
+The seed now creates 1 research group with 5 student members.
 
 ## Getting Started
 
@@ -72,7 +76,10 @@ npm install
 cp .env.example .env.local
 ```
 
-3. Create a Supabase project, then run the SQL migration in [supabase/migrations/20260329150000_researchhub_tancu.sql](/Users/juliusfabian/Documents/Research%20Management%20System/supabase/migrations/20260329150000_researchhub_tancu.sql)
+3. Create a Supabase project, then run these SQL migrations in order:
+
+- [20260329150000_researchhub_tancu.sql](/Users/juliusfabian/Documents/Research%20Management%20System/supabase/migrations/20260329150000_researchhub_tancu.sql)
+- [20260329170000_vedaresearchhub_policy_updates.sql](/Users/juliusfabian/Documents/Research%20Management%20System/supabase/migrations/20260329170000_vedaresearchhub_policy_updates.sql)
 
 4. Seed the demo accounts and starter data:
 
@@ -98,9 +105,9 @@ APP_BASE_URL=http://localhost:3000
 
 SMTP_HOST=smtp.example.com
 SMTP_PORT=587
-SMTP_USER=your-smtp-user
-SMTP_PASS=your-smtp-password
-EMAIL_FROM=ResearchHub TANCU <no-reply@example.com>
+SMTP_USER=your-gmail-address@gmail.com
+SMTP_PASS=your-gmail-app-password
+EMAIL_FROM=VedaResearchHub <your-gmail-address@gmail.com>
 ```
 
 ## Project Structure
@@ -116,7 +123,9 @@ EMAIL_FROM=ResearchHub TANCU <no-reply@example.com>
 ## Notes
 
 - The project now requires Supabase configuration before sign-in works.
-- The seed script is intended for a fresh or demo Supabase project and creates the teacher/student demo accounts.
-- Submission uploads are limited to PDF and DOCX files.
-- Resource uploads support both file uploads and external links.
+- The seed script is intended for a fresh or demo Supabase project and creates 1 teacher and 5 student accounts in a shared demo group.
+- Submission uploads are limited to PDF and DOCX files up to 10 MB.
+- Students can see group members, comments, and tasks, but only their own submission history and files.
+- Resource uploads support both file uploads and external links, and teachers can mark resources as admin-only.
 - Email alerts are optional. If SMTP variables are missing, in-app notifications still work.
+- Set `APP_BASE_URL` to your deployed Netlify site URL before using password setup/reset emails in production.

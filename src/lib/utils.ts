@@ -1,4 +1,8 @@
-import { STATUS_COLORS, STATUS_LABELS } from "@/lib/constants";
+import {
+  MAX_UPLOAD_SIZE_BYTES,
+  STATUS_COLORS,
+  STATUS_LABELS
+} from "@/lib/constants";
 import type { StageStatus } from "@/lib/types";
 
 export function cn(...parts: Array<string | false | null | undefined>) {
@@ -36,6 +40,10 @@ export function sanitizeFileName(fileName: string) {
 
 export function isAllowedDocument(fileName: string) {
   return /\.(pdf|docx)$/i.test(fileName);
+}
+
+export function isAllowedFileSize(fileSize: number) {
+  return fileSize <= MAX_UPLOAD_SIZE_BYTES;
 }
 
 export function titleCase(value: string) {

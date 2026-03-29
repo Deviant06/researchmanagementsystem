@@ -5,7 +5,10 @@ import type {
   StageStatus
 } from "@/lib/types";
 
-export const APP_NAME = "ResearchHub TANCU";
+export const APP_NAME = "VedaResearchHub";
+export const SCHOOL_NAME = "Vedasto R. Santiago High School";
+export const DEMO_ACCOUNT_PASSWORD = "ResearchHub123!";
+export const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
 
 export const RESEARCH_STAGES: Array<{
   key: StageKey;
@@ -58,5 +61,3 @@ export const RESOURCE_CATEGORY_LABELS: Record<ResourceCategory, string> = {
   SAMPLE_PAPER: "Sample Paper",
   VIDEO_GUIDE: "Video Guide"
 };
-
-export const ADMIN_TEMP_PASSWORD = "ResearchHub123!";

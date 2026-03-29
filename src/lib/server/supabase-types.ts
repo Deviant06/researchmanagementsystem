@@ -226,6 +226,7 @@ export interface Database {
         Row: {
           id: string;
           category: "TEMPLATE" | "RUBRIC" | "SAMPLE_PAPER" | "VIDEO_GUIDE";
+          audience: "ALL" | "ADMIN_ONLY";
           title: string;
           description: string;
           file_name: string | null;
@@ -237,6 +238,7 @@ export interface Database {
         Insert: {
           id?: string;
           category: Database["public"]["Tables"]["resources"]["Row"]["category"];
+          audience?: Database["public"]["Tables"]["resources"]["Row"]["audience"];
           title: string;
           description: string;
           file_name?: string | null;
@@ -247,6 +249,7 @@ export interface Database {
         };
         Update: {
           category?: Database["public"]["Tables"]["resources"]["Row"]["category"];
+          audience?: Database["public"]["Tables"]["resources"]["Row"]["audience"];
           title?: string;
           description?: string;
           file_name?: string | null;
@@ -326,6 +329,7 @@ export interface Database {
         | "RUBRIC"
         | "SAMPLE_PAPER"
         | "VIDEO_GUIDE";
+      resource_audience_type: "ALL" | "ADMIN_ONLY";
       notification_type:
         | "FEEDBACK"
         | "REVISION_TASK"

@@ -1,16 +1,25 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
-  ADMIN_TEMP_PASSWORD,
   COMMENT_CATEGORY_LABELS,
+  MAX_UPLOAD_SIZE_BYTES,
   RESEARCH_STAGES,
   STATUS_PROGRESS
 } from "@/lib/constants";
 import { toSafeUser } from "@/lib/server/auth";
+import {
+  isEmailConfigured,
+  sendAccountActionEmail
+} from "@/lib/server/email";
 import { createNotification } from "@/lib/server/notification-center";
 import type { Database } from "@/lib/server/supabase-types";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { isAllowedDocument, sanitizeFileName, titleCase } from "@/lib/utils";
+import {
+  isAllowedDocument,
+  isAllowedFileSize,
+  sanitizeFileName,
+  titleCase
+} from "@/lib/utils";
 import type {
   AdminAnalytics,
   AdminDashboardData,
@@ -58,6 +67,18 @@ interface Dataset {
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+function createProvisionedPassword() {
+  return `${crypto.randomUUID()}Aa1!`;
+}
+
+function getAppBaseUrl() {
+  return (process.env.APP_BASE_URL ?? "http://localhost:3000").replace(/\/$/, "");
+}
+
+function getPasswordActionRedirectUrl() {
+  return `${getAppBaseUrl()}/auth/update-password`;
 }
 
 function stageLabel(stageKey: StageKey) {
@@ -152,6 +173,7 @@ function mapResource(resource: ResourceRow): ResourceRecord {
   return {
     id: resource.id,
     category: resource.category,
+    audience: resource.audience,
     title: resource.title,
     description: resource.description,
     fileName: resource.file_name,
@@ -159,6 +181,46 @@ function mapResource(resource: ResourceRow): ResourceRecord {
     externalUrl: resource.external_url,
     uploadedByUserId: resource.uploaded_by_user_id,
     createdAt: resource.created_at
+  };
+}
+
+async function sendPasswordActionEmail(input: {
+  admin: SupabaseClient<Database>;
+  email: string;
+  name: string;
+  subject: string;
+  intro: string;
+  actionLabel: string;
+}) {
+  const { data, error } = await input.admin.auth.admin.generateLink({
+    type: "recovery",
+    email: input.email,
+    options: {
+      redirectTo: getPasswordActionRedirectUrl()
+    }
+  });
+
+  if (error || !data.properties?.action_link) {
+    throw new Error(error?.message ?? "Unable to generate a secure password link.");
+  }
+
+  if (!isEmailConfigured()) {
+    return {
+      emailSent: false
+    };
+  }
+
+  await sendAccountActionEmail({
+    email: input.email,
+    name: input.name,
+    subject: input.subject,
+    intro: input.intro,
+    actionLabel: input.actionLabel,
+    actionUrl: data.properties.action_link
+  });
+
+  return {
+    emailSent: true
   };
 }
 
@@ -207,6 +269,66 @@ function createDefaultStages(groupId: string, baseDate = new Date()) {
         last_reviewed_at: null
       };
     }
+  );
+}
+
+async function loadSharedDeadlineTemplate(
+  admin: SupabaseClient<Database>
+): Promise<Map<StageKey, string> | null> {
+  const earliestGroup = await assertQuery<Pick<GroupRow, "id"> | null>(
+    "Unable to load existing groups",
+    admin
+      .from("groups")
+      .select("id")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle()
+  );
+
+  if (!earliestGroup) {
+    return null;
+  }
+
+  const templateStages = await assertQuery<
+    Array<Pick<StageRow, "stage_key" | "due_date">>
+  >(
+    "Unable to load stage deadline template",
+    admin.from("stages").select("stage_key, due_date").eq("group_id", earliestGroup.id)
+  );
+
+  if (!templateStages || templateStages.length === 0) {
+    return null;
+  }
+
+  return new Map(
+    templateStages.map((stage) => [stage.stage_key, stage.due_date] as const)
+  );
+}
+
+async function createStagesForGroup(
+  admin: SupabaseClient<Database>,
+  groupId: string
+) {
+  const sharedTemplate = await loadSharedDeadlineTemplate(admin);
+  const timestamp = nowIso();
+  const stageRows =
+    sharedTemplate && sharedTemplate.size > 0
+      ? RESEARCH_STAGES.map<Database["public"]["Tables"]["stages"]["Insert"]>(
+          (stage) => ({
+            group_id: groupId,
+            stage_key: stage.key,
+            status: "NOT_STARTED",
+            due_date: sharedTemplate.get(stage.key) ?? nowIso(),
+            updated_at: timestamp,
+            last_submission_at: null,
+            last_reviewed_at: null
+          })
+        )
+      : createDefaultStages(groupId, new Date());
+
+  await assertQuery<null>(
+    "Unable to create group stages",
+    admin.from("stages").insert(stageRows)
   );
 }
 
@@ -280,10 +402,7 @@ async function findOrCreateGroup(
     admin.from("groups").insert({ name: normalized }).select("*").single()
   );
 
-  await assertQuery<null>(
-    "Unable to create group stages",
-    admin.from("stages").insert(createDefaultStages(created.id, new Date()))
-  );
+  await createStagesForGroup(admin, created.id);
 
   return created;
 }
@@ -432,7 +551,19 @@ function enrichComments(dataset: Dataset, comments: CommentRecord[]) {
     }));
 }
 
-function buildWorkspace(dataset: Dataset, groupId: string): GroupWorkspace {
+function filterResourcesForUser(resources: ResourceRecord[], user: SafeUser) {
+  if (user.role === "ADMIN") {
+    return resources;
+  }
+
+  return resources.filter((resource) => resource.audience === "ALL");
+}
+
+function buildWorkspace(
+  dataset: Dataset,
+  groupId: string,
+  viewer?: SafeUser
+): GroupWorkspace {
   const group = dataset.groups.find((entry) => entry.id === groupId);
 
   if (!group) {
@@ -455,7 +586,10 @@ function buildWorkspace(dataset: Dataset, groupId: string): GroupWorkspace {
       .filter(
         (submission) =>
           submission.groupId === groupId &&
-          submission.stageKey === stageDefinition.key
+          submission.stageKey === stageDefinition.key &&
+          (!viewer ||
+            viewer.role === "ADMIN" ||
+            submission.uploadedByUserId === viewer.id)
       )
       .sort((left, right) => right.version - left.version)
       .map((submission) => ({
@@ -682,15 +816,16 @@ export async function getAdminDashboardData(
   }
 
   const dataset = await loadDataset();
-  const groups = dataset.groups.map((group) => buildWorkspace(dataset, group.id));
+  const safeUser = toSafeUser(currentUser);
+  const groups = dataset.groups.map((group) => buildWorkspace(dataset, group.id, safeUser));
 
   return {
-    currentUser: toSafeUser(currentUser),
+    currentUser: safeUser,
     students: dataset.users
       .filter((user) => user.role === "STUDENT")
       .map((user) => user),
     groups,
-    resources: dataset.resources
+    resources: filterResourcesForUser(dataset.resources, safeUser)
       .slice()
       .sort((left, right) => right.createdAt.localeCompare(left.createdAt)),
     notifications: await loadNotificationsForUser(userId),
@@ -724,15 +859,16 @@ export async function getStudentDashboardData(
           )
         ).map(mapResource)
       };
+  const safeUser = toSafeUser(currentUser);
   const group = currentUser.group_id
-    ? buildWorkspace(dataset, currentUser.group_id)
+    ? buildWorkspace(dataset, currentUser.group_id, safeUser)
     : null;
   const notifications = await loadNotificationsForUser(userId);
 
   return {
-    currentUser: toSafeUser(currentUser),
+    currentUser: safeUser,
     group,
-    resources: dataset.resources
+    resources: filterResourcesForUser(dataset.resources, safeUser)
       .slice()
       .sort((left, right) => right.createdAt.localeCompare(left.createdAt)),
     notifications,
@@ -762,7 +898,7 @@ export async function createStudentAccount(
   const email = input.email.toLowerCase();
   const { data, error } = await admin.auth.admin.createUser({
     email,
-    password: ADMIN_TEMP_PASSWORD,
+    password: createProvisionedPassword(),
     email_confirm: true,
     user_metadata: {
       full_name: name
@@ -788,9 +924,15 @@ export async function createStudentAccount(
     })
   );
 
-  return {
-    temporaryPassword: ADMIN_TEMP_PASSWORD
-  };
+  return sendPasswordActionEmail({
+    admin,
+    email,
+    name,
+    subject: "Set your VedaResearchHub password",
+    intro:
+      "Your teacher created your research workspace account. Use the secure link below to set your password and activate your access.",
+    actionLabel: "Set Password"
+  });
 }
 
 export async function updateStudentAccount(
@@ -850,17 +992,21 @@ export async function resetStudentPassword(actor: SafeUser, studentId: string) {
   ensureAdmin(actor);
 
   const admin = createSupabaseAdminClient();
-  const { error } = await admin.auth.admin.updateUserById(studentId, {
-    password: ADMIN_TEMP_PASSWORD
-  });
+  const profile = await getProfileById(admin, studentId);
 
-  if (error) {
-    throw new Error(error.message);
+  if (!profile) {
+    throw new Error("Student profile not found.");
   }
 
-  return {
-    temporaryPassword: ADMIN_TEMP_PASSWORD
-  };
+  return sendPasswordActionEmail({
+    admin,
+    email: profile.email,
+    name: profile.name,
+    subject: "Reset your VedaResearchHub password",
+    intro:
+      "Your teacher requested a password reset for your research workspace. Use the secure link below to choose a new password.",
+    actionLabel: "Reset Password"
+  });
 }
 
 export async function updateStageDetails(
@@ -934,6 +1080,12 @@ export async function createSubmission(
 
   if (file && !isAllowedDocument(file.name)) {
     throw new Error("Only PDF and DOCX files are allowed for submissions.");
+  }
+
+  if (file && !isAllowedFileSize(file.size)) {
+    throw new Error(
+      `Submission files must be ${Math.floor(MAX_UPLOAD_SIZE_BYTES / (1024 * 1024))} MB or smaller.`
+    );
   }
 
   const latestSubmission = await assertQuery<
@@ -1224,6 +1376,7 @@ export async function uploadResource(
     title: string;
     description: string;
     category: ResourceCategory;
+    audience: "ALL" | "ADMIN_ONLY";
     externalUrl?: string;
     file?: File | null;
   }
@@ -1240,6 +1393,12 @@ export async function uploadResource(
   let filePath: string | null = null;
 
   if (input.file) {
+    if (!isAllowedFileSize(input.file.size)) {
+      throw new Error(
+        `Resource files must be ${Math.floor(MAX_UPLOAD_SIZE_BYTES / (1024 * 1024))} MB or smaller.`
+      );
+    }
+
     const storagePath = `resources/${Date.now()}-${sanitizeFileName(input.file.name)}`;
     await uploadToStorage(admin, RESOURCE_BUCKET, storagePath, input.file);
     fileName = input.file.name;
@@ -1250,6 +1409,7 @@ export async function uploadResource(
     "Unable to save resource",
     admin.from("resources").insert({
       category: input.category,
+      audience: input.audience,
       title: input.title.trim(),
       description: input.description.trim(),
       file_name: fileName,
@@ -1260,16 +1420,21 @@ export async function uploadResource(
     })
   );
 
-  const students = await assertQuery<Array<Pick<ProfileRow, "id">>>(
-    "Unable to load student accounts",
-    admin.from("profiles").select("id").eq("role", "STUDENT")
-  );
+  const targetUserIds =
+    input.audience === "ADMIN_ONLY"
+      ? await getAdminUserIds(admin)
+      : (
+          await assertQuery<Array<Pick<ProfileRow, "id">>>(
+            "Unable to load student accounts",
+            admin.from("profiles").select("id").eq("role", "STUDENT")
+          )
+        ).map((student) => student.id);
 
   await createNotification(admin, {
     type: "RESOURCE",
     title: "New resource available",
     message: `${input.title.trim()} was added to the repository.`,
-    targetUserIds: (students ?? []).map((student) => student.id),
+    targetUserIds,
     groupId: null,
     stageKey: null
   });
@@ -1295,6 +1460,10 @@ export async function getSubmissionDownload(
     throw new Error("This submission does not have an uploaded file.");
   }
 
+  if (actor.role !== "ADMIN" && submission.uploaded_by_user_id !== actor.id) {
+    throw new Error("Students can only download their own submission files.");
+  }
+
   return {
     fileName: submission.file_name,
     signedUrl: await createSignedUrl(admin, SUBMISSION_BUCKET, submission.file_path)
@@ -1316,14 +1485,41 @@ export async function getResourceDownload(actor: SafeUser, resourceId: string) {
     throw new Error("This resource is stored as a link.");
   }
 
-  if (actor.role !== "ADMIN" && actor.role !== "STUDENT") {
-    throw new Error("Unauthorized.");
+  if (actor.role !== "ADMIN" && resource.audience === "ADMIN_ONLY") {
+    throw new Error("This resource is available to admins only.");
   }
 
   return {
     fileName: resource.file_name,
     signedUrl: await createSignedUrl(admin, RESOURCE_BUCKET, resource.file_path)
   };
+}
+
+export async function deleteResource(actor: SafeUser, resourceId: string) {
+  ensureAdmin(actor);
+
+  const admin = createSupabaseAdminClient();
+  const resource = await assertQuery<ResourceRow>(
+    "Unable to load resource",
+    admin.from("resources").select("*").eq("id", resourceId).single()
+  );
+
+  if (!resource) {
+    throw new Error("Resource not found.");
+  }
+
+  if (resource.file_path) {
+    const { error } = await admin.storage.from(RESOURCE_BUCKET).remove([resource.file_path]);
+
+    if (error) {
+      throw new Error(`Unable to remove resource file: ${error.message}`);
+    }
+  }
+
+  await assertQuery<null>(
+    "Unable to delete resource",
+    admin.from("resources").delete().eq("id", resourceId)
+  );
 }
 
 export async function getNotificationForUser(

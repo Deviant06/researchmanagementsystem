@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import { APP_NAME, ADMIN_TEMP_PASSWORD } from "@/lib/constants";
+import { APP_NAME, DEMO_ACCOUNT_PASSWORD, SCHOOL_NAME } from "@/lib/constants";
 import { LoginForm } from "@/components/login-form";
 import { getCurrentUser } from "@/lib/server/auth";
 import { hasSupabasePublicEnv } from "@/lib/server/supabase-env";
@@ -11,12 +11,12 @@ const demoAccounts = [
   {
     role: "Teacher Admin",
     email: "teacher@researchhub.local",
-    password: ADMIN_TEMP_PASSWORD
+    password: DEMO_ACCOUNT_PASSWORD
   },
   {
     role: "Student Demo",
     email: "aira@researchhub.local",
-    password: ADMIN_TEMP_PASSWORD
+    password: DEMO_ACCOUNT_PASSWORD
   }
 ];
 
@@ -31,7 +31,7 @@ export default async function LoginPage() {
   return (
     <main className="auth-shell">
       <section className="auth-hero">
-        <p className="eyebrow">Research Management for Senior High School</p>
+        <p className="eyebrow">{SCHOOL_NAME}</p>
         <h1>{APP_NAME}</h1>
         <p className="auth-copy">
           Guide research groups from title proposal to final defense with version
