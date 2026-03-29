@@ -23,11 +23,16 @@ export default async function DashboardPage() {
         <section className="hero-banner">
           <div>
             <p className="eyebrow">Admin Dashboard</p>
-            <h2>Research progress across all groups</h2>
+            <h2>Class research progress at a glance</h2>
             <p>
-              Review class-wide completion trends, identify delays, and jump into
-              management tools whenever a group needs support.
+              Spot bottlenecks quickly, check which groups need support, and move
+              from analytics to action without digging through clutter.
             </p>
+            <div className="hero-chip-list">
+              <span className="hero-chip">{data.groups.length} active groups</span>
+              <span className="hero-chip">{lateStages} late stages</span>
+              <span className="hero-chip">{data.analytics.completionRate}% average completion</span>
+            </div>
           </div>
           <Link className="button button-primary" href="/admin">
             Open Management Workspace
@@ -38,21 +43,25 @@ export default async function DashboardPage() {
           <MetricCard
             helper="Active student research groups"
             label="Groups"
+            tone="sky"
             value={data.groups.length}
           />
           <MetricCard
             helper="Student accounts currently tracked"
             label="Students"
+            tone="mint"
             value={data.students.length}
           />
           <MetricCard
             helper="Average completion across all workflows"
             label="Completion"
+            tone="violet"
             value={`${data.analytics.completionRate}%`}
           />
           <MetricCard
             helper="Stages currently beyond their due dates"
             label="Late Stages"
+            tone="coral"
             value={lateStages}
           />
         </section>
@@ -160,36 +169,47 @@ export default async function DashboardPage() {
       <section className="hero-banner">
         <div>
           <p className="eyebrow">Student Dashboard</p>
-          <h2>{group ? `${group.name} research workspace` : "No group assigned yet"}</h2>
+          <h2>{group ? `${group.name} research journey` : "No group assigned yet"}</h2>
           <p>
-            Track chapter progress, respond to feedback, complete revision tasks,
-            and keep every submission version organized in one place.
+            See what needs attention today, track your group’s progress, and stay
+            confident about what to submit next.
           </p>
+          {group ? (
+            <div className="hero-chip-list">
+              <span className="hero-chip">{group.progressPercent}% complete</span>
+              <span className="hero-chip">{data.revisionTasks} open revision tasks</span>
+              <span className="hero-chip">{group.students.length} group members</span>
+            </div>
+          ) : null}
         </div>
         <Link className="button button-primary" href="/student">
-          Open Workspace
+          Go to My Workspace
         </Link>
       </section>
 
       <section className="metrics-grid">
         <MetricCard
-          helper="Average completion across all research stages"
-          label="Progress"
+          helper="Your group’s overall chapter progress"
+          label="Overall Progress"
+          tone="mint"
           value={`${group?.progressPercent ?? 0}%`}
         />
         <MetricCard
-          helper="Stages waiting for a new draft or revision"
-          label="Pending Submissions"
+          helper="Stages that still need a new draft from your team"
+          label="What to Submit"
+          tone="sun"
           value={data.pendingSubmissions}
         />
         <MetricCard
-          helper="Teacher updates waiting in your inbox"
-          label="Feedback Alerts"
+          helper="Teacher feedback waiting for your attention"
+          label="Teacher Notes"
+          tone="sky"
           value={data.feedbackCount}
         />
         <MetricCard
-          helper="Revision checklist items still open"
-          label="Revision Tasks"
+          helper="Checklist items your group still needs to finish"
+          label="Open Revisions"
+          tone="coral"
           value={data.revisionTasks}
         />
       </section>
@@ -199,8 +219,8 @@ export default async function DashboardPage() {
           <section className="surface-card">
             <div className="section-heading">
               <div>
-                <h3>Research Progress</h3>
-                <p>Every stage is auto-scored based on its current review status.</p>
+                <h3>Where Your Group Stands</h3>
+                <p>Each stage updates automatically so you always know what is done and what needs revision.</p>
               </div>
             </div>
 
@@ -234,8 +254,8 @@ export default async function DashboardPage() {
             <article className="surface-card">
               <div className="section-heading">
                 <div>
-                  <h3>Feedback Notifications</h3>
-                  <p>Teacher updates for your group workspace.</p>
+                  <h3>Teacher Updates</h3>
+                  <p>Friendly reminders, review notes, and revision updates for your team.</p>
                 </div>
               </div>
               <div className="stack-md">
@@ -258,8 +278,8 @@ export default async function DashboardPage() {
             <article className="surface-card">
               <div className="section-heading">
                 <div>
-                  <h3>Resource Highlights</h3>
-                  <p>Templates, rubrics, papers, and guides from your teacher.</p>
+                  <h3>Helpful Resources</h3>
+                  <p>Templates, rubrics, sample papers, and quick guides you can use right away.</p>
                 </div>
               </div>
 

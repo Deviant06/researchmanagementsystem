@@ -30,9 +30,14 @@ export function StudentWorkspace({ data }: StudentWorkspaceProps) {
           <p className="eyebrow">Student Workspace</p>
           <h2>{data.group.name}</h2>
           <p>
-            Submit chapter drafts, manage revision checklists, and keep track of
-            everything your group needs before the final defense.
+            A clearer space for drafts, revision tasks, and teacher feedback so
+            your group always knows the next step.
           </p>
+          <div className="hero-chip-list">
+            <span className="hero-chip">{data.group.progressPercent}% progress</span>
+            <span className="hero-chip">{data.group.students.length} teammates</span>
+            <span className="hero-chip">{data.revisionTasks} revision tasks</span>
+          </div>
         </div>
       </section>
 
@@ -40,21 +45,25 @@ export function StudentWorkspace({ data }: StudentWorkspaceProps) {
         <MetricCard
           helper="Auto-calculated from stage statuses"
           label="Completion"
+          tone="mint"
           value={`${data.group.progressPercent}%`}
         />
         <MetricCard
           helper="Stages waiting for new work from your group"
           label="Pending Submissions"
+          tone="sun"
           value={data.pendingSubmissions}
         />
         <MetricCard
           helper="Teacher notifications in your workspace"
           label="Feedback Alerts"
+          tone="sky"
           value={data.feedbackCount}
         />
         <MetricCard
           helper="Open revision checklist items"
           label="Revision Tasks"
+          tone="coral"
           value={data.revisionTasks}
         />
       </section>
@@ -62,12 +71,12 @@ export function StudentWorkspace({ data }: StudentWorkspaceProps) {
       <section className="surface-card">
         <div className="section-heading">
           <div>
-            <h3>Group Overview</h3>
+            <h3>Your Team</h3>
             <p>
               Collaborators: {data.group.students.map((student) => student.name).join(", ")}
             </p>
             <p className="muted-copy">
-              You can view group members, feedback, and tasks, but submission history is limited to your own uploads.
+              You can view group members, feedback, and tasks here, while submission history stays limited to your own uploads.
             </p>
           </div>
         </div>
@@ -81,8 +90,8 @@ export function StudentWorkspace({ data }: StudentWorkspaceProps) {
       <section className="surface-card">
         <div className="section-heading">
           <div>
-            <h3>Notifications</h3>
-            <p>Recent updates from your teacher and your own group activity.</p>
+            <h3>What’s New</h3>
+            <p>Recent updates from your teacher and important group activity.</p>
           </div>
         </div>
         <div className="stack-md">

@@ -22,12 +22,12 @@ export function AppShell({ user, children }: AppShellProps) {
   const navItems =
     user.role === "ADMIN"
       ? [
-          { href: "/dashboard", label: "Overview" },
-          { href: "/admin", label: "Management" }
+          { href: "/dashboard", label: "Class Overview" },
+          { href: "/admin", label: "Teacher Tools" }
         ]
       : [
-          { href: "/dashboard", label: "Overview" },
-          { href: "/student", label: "Workspace" }
+          { href: "/dashboard", label: "My Overview" },
+          { href: "/student", label: "My Workspace" }
         ];
 
   return (
@@ -39,7 +39,7 @@ export function AppShell({ user, children }: AppShellProps) {
           <p className="brand-copy">
             {user.role === "ADMIN"
               ? "Monitor groups, approvals, and revision bottlenecks."
-              : "Stay on track with submissions, tasks, and feedback."}
+              : "Stay on track with drafts, teacher notes, and revision tasks."}
           </p>
         </div>
 
@@ -79,7 +79,7 @@ export function AppShell({ user, children }: AppShellProps) {
             {menuOpen ? "Close" : "Menu"}
           </button>
           <div>
-            <p className="eyebrow">Logged in as</p>
+            <p className="eyebrow">{user.role === "ADMIN" ? "Teacher Session" : "Student Session"}</p>
             <strong>{user.email}</strong>
           </div>
         </header>

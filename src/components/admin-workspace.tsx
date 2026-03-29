@@ -26,10 +26,11 @@ export function AdminWorkspace({ data }: AdminWorkspaceProps) {
       <section className="hero-banner">
         <div>
           <p className="eyebrow">Management Workspace</p>
-          <h2>Teacher tools for research supervision</h2>
+          <h2>Teacher tools for calm, clear supervision</h2>
           <p>
             Manage accounts, organize groups, review submissions, leave structured
-            feedback, and upload resources that students can access immediately.
+            feedback, and publish resources in a space that feels simpler for both
+            teachers and students.
           </p>
         </div>
       </section>
@@ -65,21 +66,25 @@ export function AdminWorkspace({ data }: AdminWorkspaceProps) {
                 <MetricCard
                   helper="Average progress across all research stages"
                   label="Completion"
+                  tone="sky"
                   value={`${selectedGroup.progressPercent}%`}
                 />
                 <MetricCard
                   helper="Open checklist items linked to teacher comments"
                   label="Pending Tasks"
+                  tone="sun"
                   value={selectedGroup.pendingTasks}
                 />
                 <MetricCard
                   helper="Stages already past the due date"
                   label="Late Stages"
+                  tone="coral"
                   value={selectedGroup.lateStages}
                 />
                 <MetricCard
                   helper="Students assigned to this group"
                   label="Members"
+                  tone="mint"
                   value={selectedGroup.students.length}
                 />
               </div>
