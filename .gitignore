@@ -1,0 +1,14 @@
+node_modules
+.next
+out
+dist
+coverage
+.DS_Store
+storage/researchhub-db.json
+storage/uploads/**
+!storage/uploads/.gitkeep
+!storage/uploads/submissions/.gitkeep
+!storage/uploads/resources/.gitkeep
+*.log
+.env*
+*.tsbuildinfo
